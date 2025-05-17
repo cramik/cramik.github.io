@@ -1,0 +1,71 @@
+@font-face {
+	font-family: 'Noto Sans';
+	src: local('Noto Mono'), url(notosans.woff2) format('woff2');
+}
+
+body {
+	font-family: 'Noto Sans';
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: 100vh;
+	background-color: #111111;
+}
+
+#message {
+	display: flex;
+	flex-direction: column;
+	margin: 3vh 0;
+	font-size: 3vh;
+	color: #666;
+	text-align: center;
+}
+
+span#small {
+	font-size: 1vh;
+}
+
+a {
+	text-decoration: none;
+}
+
+.menu {
+	display: flex;
+	list-style: none;
+	padding: 0;
+	gap: 4vh;
+}
+
+.menu-item {
+	display: flex;
+	height: 80vh;
+	text-align: center;
+	align-items: center;
+}
+
+.menu-item svg {
+	width: 20vh;
+	height: 20vh;
+	fill: #ff6600;
+	padding-top: 1vh;
+}
+
+.menu-item span {
+	display: block;
+	margin-top: 1vh;
+	font-size: 5vh;
+	color: #ff6600;
+}
+
+.menu-item a:hover svg {
+	fill: #ffffff;
+}
+.menu-item a:hover span {
+	color: #ffffff;
+}
+
+.menu-item svg, .menu-item span, .menu-item label {
+	transition: all 0.3s ease; 
+}
