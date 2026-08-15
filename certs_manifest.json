@@ -1,0 +1,37 @@
+{
+  "free": {
+    "total": 44072,
+    "shards": [
+      {
+        "file": "certs_free_0.json",
+        "count": 44072
+      }
+    ]
+  },
+  "paid": {
+    "total": 158492,
+    "shards": [
+      {
+        "file": "certs_paid_0.json",
+        "count": 79246
+      },
+      {
+        "file": "certs_paid_1.json",
+        "count": 79246
+      }
+    ]
+  },
+  "none": {
+    "total": 185100,
+    "shards": [
+      {
+        "file": "certs_none_0.json",
+        "count": 92550
+      },
+      {
+        "file": "certs_none_1.json",
+        "count": 92550
+      }
+    ]
+  }
+}

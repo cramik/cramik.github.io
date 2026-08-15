@@ -141,40 +141,65 @@
 	</div>
 
 	<script>
-	// Precomputed unique-cert counts per cost bucket, used to weight the
-	// "All" filter so we don't have to load every file up front.
-	const COST_COUNTS = { free: 44072, paid: 158492, none: 185100 };
-	const COST_FILES = { free: 'certs_free.json', paid: 'certs_paid.json', none: 'certs_none.json' };
+	// Data is sharded (see build_stats.py) so no single file exceeds
+	// Cloudflare Pages' 25 MiB per-asset limit. certs_manifest.json lists
+	// each cost's shard files and record counts so we can weight random
+	// picks correctly without fetching every shard up front.
+	const MANIFEST_FILE = 'certs_manifest.json';
 	const IMAGE_PREFIX = 'https://images.credly.com/images/';
 	const BADGE_URL_PREFIX = 'https://www.credly.com/badges/';
 
-	const cache = {}; // cost -> {issuers, certs}, loaded lazily and kept in memory
+	let manifest = null; // { cost: { total, shards: [{file, count}] } }
+	const shardCache = {}; // filename -> {issuers, certs}, loaded lazily and kept in memory
 
 	function setStatus(msg) {
 		document.getElementById('status').innerText = msg;
 	}
 
-	async function loadCost(cost) {
-		if (cache[cost]) return cache[cost];
-		setStatus('Loading ' + cost + ' badge data (first time only)...');
-		const response = await fetch(COST_FILES[cost]);
+	async function loadManifest() {
+		if (manifest) return manifest;
+		setStatus('Loading badge index...');
+		const response = await fetch(MANIFEST_FILE);
 		if (!response.ok) {
-			throw new Error('Failed to fetch ' + COST_FILES[cost]);
+			throw new Error('Failed to fetch ' + MANIFEST_FILE);
+		}
+		manifest = await response.json();
+		setStatus('');
+		return manifest;
+	}
+
+	async function loadShard(file) {
+		if (shardCache[file]) return shardCache[file];
+		setStatus('Loading ' + file + ' (first time only)...');
+		const response = await fetch(file);
+		if (!response.ok) {
+			throw new Error('Failed to fetch ' + file);
 		}
 		const data = await response.json();
-		cache[cost] = data;
+		shardCache[file] = data;
 		setStatus('');
 		return data;
 	}
 
-	function pickWeightedCost() {
-		const total = COST_COUNTS.free + COST_COUNTS.paid + COST_COUNTS.none;
+	function pickWeighted(entries, getWeight) {
+		const total = entries.reduce((sum, e) => sum + getWeight(e), 0);
 		let r = Math.random() * total;
-		for (const cost of ['free', 'paid', 'none']) {
-			if (r < COST_COUNTS[cost]) return cost;
-			r -= COST_COUNTS[cost];
+		for (const e of entries) {
+			const w = getWeight(e);
+			if (r < w) return e;
+			r -= w;
 		}
-		return 'none';
+		return entries[entries.length - 1];
+	}
+
+	function pickCost(filter) {
+		if (filter !== 'all') return filter;
+		const costs = ['free', 'paid', 'none'];
+		return pickWeighted(costs, (c) => manifest[c].total);
+	}
+
+	function pickShard(cost) {
+		return pickWeighted(manifest[cost].shards, (s) => s.count);
 	}
 
 	function renderCert(cost, data, row) {
@@ -206,8 +231,10 @@
 		const btn = document.getElementById('get-random-btn');
 		btn.disabled = true;
 		try {
-			const cost = filter === 'all' ? pickWeightedCost() : filter;
-			const data = await loadCost(cost);
+			await loadManifest();
+			const cost = pickCost(filter);
+			const shard = pickShard(cost);
+			const data = await loadShard(shard.file);
 			if (!data.certs.length) {
 				setStatus('No badges found for this filter.');
 				return;
