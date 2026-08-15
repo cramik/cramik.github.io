@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Random Credly Badge</title>
+	<link rel="icon" href="favicon.svg">
+	<style>
+		@font-face { font-family: 'Noto Sans'; src: local('Noto Sans'), url(notosans.woff2) format('woff2'); }
+		* { box-sizing: border-box; }
+		body {
+			font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+			min-height: 100vh;
+			background-color: #111111;
+			color: #f4f4f5;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 4vh 4vw;
+		}
+		a { color: #ff6600; }
+		h1 {
+			font-size: 1.6em;
+			margin: 0 0 1vh 0;
+		}
+		.back-link {
+			font-size: 0.85em;
+			color: #888;
+			text-decoration: none;
+			margin-bottom: 3vh;
+			display: inline-block;
+		}
+		.back-link:hover { color: #ff6600; }
+		.controls {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 3vh;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+		select, button {
+			font-family: inherit;
+			font-size: 1em;
+			padding: 8px 14px;
+			border-radius: 8px;
+			border: 1px solid #333;
+			background: #1c1c1e;
+			color: #f4f4f5;
+		}
+		select option { color: #000; }
+		button {
+			background: #ff6600;
+			color: #111;
+			border: none;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 0.2s ease;
+		}
+		button:hover:not(:disabled) { background: #ff8533; }
+		button:disabled { opacity: 0.5; cursor: default; }
+		#status {
+			font-size: 0.85em;
+			color: #888;
+			min-height: 1.2em;
+			margin-bottom: 1vh;
+		}
+		#card {
+			min-height: 340px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+		#badge-image {
+			max-width: 220px;
+			max-height: 220px;
+			background: #1c1c1e;
+			border-radius: 12px;
+			padding: 14px;
+			box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+		}
+		#badge-name {
+			font-size: 1.3em;
+			font-weight: 600;
+			margin: 16px 0 4px 0;
+			max-width: 480px;
+		}
+		#badge-issuer {
+			font-size: 1em;
+			color: #999;
+			margin: 0 0 8px 0;
+		}
+		#badge-cost {
+			display: inline-block;
+			font-size: 0.75em;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			padding: 3px 12px;
+			border-radius: 12px;
+			margin-bottom: 12px;
+			color: #111;
+			font-weight: 700;
+		}
+		.cost-free { background: #4ade80; }
+		.cost-paid { background: #ffb547; }
+		.cost-none { background: #888; }
+		#badge-link {
+			font-size: 0.95em;
+			text-decoration: none;
+		}
+		#badge-link:hover { text-decoration: underline; }
+	</style>
+</head>
+<body>
+
+	<a class="back-link" href="random.html">&larr; Random</a>
+	<h1>Random Credly Badge</h1>
+
+	<div class="controls">
+		<select id="cost-filter">
+			<option value="all">All</option>
+			<option value="free">Free</option>
+			<option value="paid">Paid</option>
+			<option value="none">None</option>
+		</select>
+		<button id="get-random-btn">Get Random Badge</button>
+	</div>
+
+	<div id="status"></div>
+
+	<div id="card">
+		<img id="badge-image" src="" alt="" style="display:none;">
+		<div id="badge-name"></div>
+		<div id="badge-issuer"></div>
+		<div id="badge-cost"></div>
+		<a id="badge-link" href="" target="_blank" rel="noopener"></a>
+	</div>
+
+	<script>
+	// Precomputed unique-cert counts per cost bucket, used to weight the
+	// "All" filter so we don't have to load every file up front.
+	const COST_COUNTS = { free: 44072, paid: 158492, none: 185100 };
+	const COST_FILES = { free: 'certs_free.json', paid: 'certs_paid.json', none: 'certs_none.json' };
+	const IMAGE_PREFIX = 'https://images.credly.com/images/';
+	const BADGE_URL_PREFIX = 'https://www.credly.com/badges/';
+
+	const cache = {}; // cost -> {issuers, certs}, loaded lazily and kept in memory
+
+	function setStatus(msg) {
+		document.getElementById('status').innerText = msg;
+	}
+
+	async function loadCost(cost) {
+		if (cache[cost]) return cache[cost];
+		setStatus('Loading ' + cost + ' badge data (first time only)...');
+		const response = await fetch(COST_FILES[cost]);
+		if (!response.ok) {
+			throw new Error('Failed to fetch ' + COST_FILES[cost]);
+		}
+		const data = await response.json();
+		cache[cost] = data;
+		setStatus('');
+		return data;
+	}
+
+	function pickWeightedCost() {
+		const total = COST_COUNTS.free + COST_COUNTS.paid + COST_COUNTS.none;
+		let r = Math.random() * total;
+		for (const cost of ['free', 'paid', 'none']) {
+			if (r < COST_COUNTS[cost]) return cost;
+			r -= COST_COUNTS[cost];
+		}
+		return 'none';
+	}
+
+	function renderCert(cost, data, row) {
+		const [id, name, issuerIdx, imgSuffix, urlOverride] = row;
+		const authority = data.issuers[issuerIdx];
+		const image = IMAGE_PREFIX + imgSuffix;
+		const url = urlOverride || (BADGE_URL_PREFIX + id);
+
+		const img = document.getElementById('badge-image');
+		img.src = image;
+		img.alt = name;
+		img.style.display = 'inline-block';
+		img.onerror = () => { img.style.display = 'none'; };
+
+		document.getElementById('badge-name').innerText = name;
+		document.getElementById('badge-issuer').innerText = authority;
+
+		const costEl = document.getElementById('badge-cost');
+		costEl.innerText = cost;
+		costEl.className = 'cost-' + cost;
+
+		const link = document.getElementById('badge-link');
+		link.href = url;
+		link.innerText = 'View on Credly';
+	}
+
+	async function getRandomCert() {
+		const filter = document.getElementById('cost-filter').value;
+		const btn = document.getElementById('get-random-btn');
+		btn.disabled = true;
+		try {
+			const cost = filter === 'all' ? pickWeightedCost() : filter;
+			const data = await loadCost(cost);
+			if (!data.certs.length) {
+				setStatus('No badges found for this filter.');
+				return;
+			}
+			const row = data.certs[Math.floor(Math.random() * data.certs.length)];
+			renderCert(cost, data, row);
+		} catch (err) {
+			console.error(err);
+			setStatus('Error loading badge data: ' + err.message);
+		} finally {
+			btn.disabled = false;
+		}
+	}
+
+	document.getElementById('get-random-btn').addEventListener('click', getRandomCert);
+	</script>
+
+</body>
+</html>
