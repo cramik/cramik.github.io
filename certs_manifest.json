@@ -1,36 +1,28 @@
 {
   "free": {
-    "total": 44072,
+    "total": 4738,
     "shards": [
       {
         "file": "certs_free_0.json",
-        "count": 44072
+        "count": 4738
       }
     ]
   },
   "paid": {
-    "total": 158492,
+    "total": 6187,
     "shards": [
       {
         "file": "certs_paid_0.json",
-        "count": 79246
-      },
-      {
-        "file": "certs_paid_1.json",
-        "count": 79246
+        "count": 6187
       }
     ]
   },
   "none": {
-    "total": 185100,
+    "total": 10439,
     "shards": [
       {
         "file": "certs_none_0.json",
-        "count": 92550
-      },
-      {
-        "file": "certs_none_1.json",
-        "count": 92550
+        "count": 10439
       }
     ]
   }

@@ -141,10 +141,6 @@
 	</div>
 
 	<script>
-	// Data is sharded (see build_stats.py) so no single file exceeds
-	// Cloudflare Pages' 25 MiB per-asset limit. certs_manifest.json lists
-	// each cost's shard files and record counts so we can weight random
-	// picks correctly without fetching every shard up front.
 	const MANIFEST_FILE = 'certs_manifest.json';
 	const IMAGE_PREFIX = 'https://images.credly.com/images/';
 	const BADGE_URL_PREFIX = 'https://www.credly.com/badges/';
